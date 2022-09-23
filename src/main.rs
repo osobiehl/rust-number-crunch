@@ -1,25 +1,29 @@
 use csv;
 use std::error::Error;
+use std::fmt::Binary;
 use std::io;
 use std::process;
 use std::fs;
 use std::io::prelude::*;
+use rayon::prelude::*;
+use rayon::array::IntoIter;
+use ordered_float::NotNaN;
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 struct SAndPHistoricalDaily{
     Date: String,
-    Open: f32,
-    High: f32,
-    Low: f32,
-    Close: f32,
+    Open: NotNaN<f32>,
+    High: NotNaN<f32>,
+    Low: NotNaN<f32>,
+    Close: NotNaN<f32>,
 
 }
 
 struct BuyAction{
-    amount_stock: f32,
-    cost: f32,
+    amount_stock: NotNaN<f32>,
+    cost: NotNaN<f32>,
     leverage: u32,
 }
 
@@ -34,15 +38,84 @@ struct SAndPSimulation{
  * 
  * 
  */
+fn set_stop_loss(stock: &StockBuy, current_price: NotNaN<f32>, current_time: u64){}
 
- fn StopLoss(starting_price: f32, current_price: f32){
-                      fvm,
- }
-
-struct Simulation_Config{
-    stop_loss: f32,
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+struct StockBuy{
+    stop_loss: NotNaN< f32 >,
+    unit: NotNaN<f32>,
+    invested: NotNaN<f32>,
+    invested_at: u64,
+    wipeout: NotNaN<f32>,
     leverage: u32,
-    sto
+    
+}
+
+
+enum StockActionFailure{
+    UnderWipeout,
+    Other
+}
+trait StockAction{
+    fn will_wipeout(&self, current_price: NotNaN<f32>) -> bool;
+    fn will_cashout(&self, current_price: NotNaN<f32>) -> bool;
+    fn cashout(&self, current_price: NotNaN<f32>) -> NotNaN<f32>;
+    fn set_stop_loss(&mut self, amount: NotNaN<f32> ) -> Result<(), StockActionFailure>;
+
+}
+impl StockAction for StockBuy{
+    fn will_wipeout(&self, current_price: NotNaN<f32>) -> bool{
+        return self.wipeout > current_price;
+    }
+    fn will_cashout(&self, current_price: NotNaN<f32>) -> bool{
+        self.will_wipeout(current_price) || self.stop_loss < current_price
+    }
+    fn cashout(&self, current_price: NotNaN<f32>) -> NotNaN<f32> {
+        return self.invested + (current_price - self.invested) * NotNaN::from(self.leverage as f32)
+    }
+    fn set_stop_loss(&mut self, amount: NotNaN<f32> ) -> Result<(), StockActionFailure>{
+
+        if self.will_wipeout(amount){
+            return Err(StockActionFailure::UnderWipeout);
+        }
+        else{
+            self.stop_loss = amount;
+        }
+
+        return Ok(());
+    }
+}
+use std::collections::BinaryHeap;
+
+trait BuyableSecurity{
+    fn from_price( price: NotNaN<f32> );
+
+}
+
+
+
+// struct StockSimulation<T: StockAction, InputType: Into<T>, InputFormat: ParallelIterator>{
+//     actions: Vec<T>,
+//     data: InputFormat,
+// }
+
+struct simulation<T: Ord + StockAction>{
+    pub funds: NotNaN<f32>,
+    positions: BinaryHeap<T>
+}
+
+
+trait StockSimulation<T: StockAction, InputType: Into<T>, ArrType: IntoIterator<Item = InputType> > {
+    fn from_Data ( collection: ArrType){
+        let data: Vec<T>  = collection.into_iter().map(|f| f.into()).collect();
+
+    }
+}
+
+
+struct SimulationConfig{
+    stop_loss: NotNaN<f32>,
+    leverage: u32,
 }
 
 
@@ -73,6 +146,7 @@ fn main() {
             Err(e) => println!("could not convert a row! {}", e)
         }
     }
-dbg!(elements);
+    let arr_par = elements.into_par_iter();
+// dbg!(elements);
 
 }
