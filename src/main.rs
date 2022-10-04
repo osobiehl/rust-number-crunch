@@ -2,7 +2,6 @@ use csv;
 use ordered_float::NotNaN;
 use rayon::array::IntoIter;
 use rayon::prelude::*;
-use core::num::flt2dec::strategy;
 use std::error::Error;
 use std::fmt::Binary;
 use std::fs;
@@ -10,17 +9,13 @@ use std::io;
 use std::io::prelude::*;
 use std::process;
 use std::time;
-use chrono::Duration;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
-struct SAndPHistoricalDaily {
-    Date: String,
-    Open: f32,
-    High: f32,
-    Low: f32,
-    Close: f32,
-}
+mod s_and_p;
+mod securities;
+mod simulation;
+mod stock_action;
+
+use s_and_p::SAndPHistoricalDaily;
 
 struct BuyAction {
     amount_stock: NotNaN<f32>,
@@ -49,17 +44,19 @@ struct StockBuy {
     leverage: u32,
 }
 
-enum StockActionFailure {
-    UnderWipeout,
-    Other,
-}
-trait StockAction {
-    fn will_wipeout(&self, current_price: NotNaN<f32>) -> bool;
-    fn will_cashout(&self, current_price: NotNaN<f32>) -> bool;
-    fn cashout(&self, current_price: NotNaN<f32>) -> NotNaN<f32>;
-    fn set_stop_loss(&mut self, amount: NotNaN<f32>) -> Result<(), StockActionFailure>;
-}
+
+
 impl StockAction for StockBuy {
+    type UnderlyingAsset = SAndPHistoricalDaily;
+    fn from(stock: Self::UnderlyingAsset)->Self{
+
+        return StockBuy { stop_loss: (),
+             unit: (),
+             invested: (), 
+             invested_at: (), 
+             wipeout: (), 
+             leverage: () }
+    }
     fn will_wipeout(&self, current_price: NotNaN<f32>) -> bool {
         return self.wipeout > current_price;
     }
@@ -82,64 +79,15 @@ impl StockAction for StockBuy {
 }
 use std::collections::BinaryHeap;
 
-trait BuyableSecurity {
-    fn from_price(price: NotNaN<f32>);
-}
+
+
 
 // struct StockSimulation<T: StockAction, InputType: Into<T>, InputFormat: ParallelIterator>{
 //     actions: Vec<T>,
 //     data: InputFormat,
 // }
 
-struct DollarCostAveragingLinear{
-    invest_amount: f32,
-    invest_frequency: Duration,
-    last_payout: Duration,
-}
-impl InvestmentStrategy for DollarCostAveragingLinear{
-    fn get_funds(&mut self, current_time: &Duration)->f32 {
-        if self.last_payout + self.invest_frequency < *current_time{
-            self.last_payout = *current_time;
-            return self.invest_amount
-        }
-        0.0
-    }
-}
 
-trait InvestmentStrategy{
-    fn get_funds( &mut self, current_time: &Duration)->f32;
-}
-
-
-struct simulation<T: Ord + StockAction, Strat: InvestmentStrategy> {
-    strategy: Strat,
-    positions: BinaryHeap<T>,
-}
-impl<T: Ord + StockAction, Strat: InvestmentStrategy> simulation<T, Strat> {
-    fn new(strategy: Strat) -> Self {
-        return Self {
-            funds: NotNaN::new(funds).unwrap(),
-            positions: BinaryHeap::new(),
-        };
-    }
-}
-
-impl<Stock, Iter> StockSimulation<Stock, Iter> for simulation<Stock>
-where
-    Stock: Ord + StockAction,
-    Iter: IntoIterator<Item = Stock>,
-{
-    fn run(collection: Iter) {}
-}
-
-trait StockSimulation<V: StockAction, T: IntoIterator<Item = V>> {
-    fn run(collection: T);
-}
-
-struct SimulationConfig {
-    stop_loss: NotNaN<f32>,
-    leverage: u32,
-}
 
 fn remove_shitty_csv(fname: &str) -> () {
     let mut vals = fs::read_to_string(fname).unwrap();
