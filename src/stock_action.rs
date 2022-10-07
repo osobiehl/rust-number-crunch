@@ -15,7 +15,7 @@ pub mod StockAction {
     
     pub trait StockAction {
         type UnderlyingAsset: Stock;
-        fn from(stock: Self::UnderlyingAsset) -> Self;
+        fn from(stock: & Self::UnderlyingAsset) -> Self;
         fn will_wipeout(&self, current_price: NotNaN<f32>) -> bool;
         fn will_cashout(&self, current_price: NotNaN<f32>) -> bool;
         fn cashout(&self, current_price: NotNaN<f32>) -> NotNaN<f32>;
