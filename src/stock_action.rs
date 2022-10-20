@@ -12,14 +12,18 @@ pub mod StockAction {
         fn get_time(&self)->Duration;
         fn get_price(&self)->NotNaN<f32>;
     }
-    
+    #[non_exhaustive]
+    pub enum StopLossFailure{
+        UnderWipeout,
+        WillImmediatelyCashOut,
+    }
     pub trait StockAction {
         type UnderlyingAsset: Stock;
-        fn from(stock: & Self::UnderlyingAsset) -> Self;
+        fn from(stock: & Self::UnderlyingAsset, currency_invested: NotNaN<f32>) -> Self;
         fn will_wipeout(&self, current_price: NotNaN<f32>) -> bool;
         fn will_cashout(&self, current_price: NotNaN<f32>) -> bool;
         fn cashout(&self, current_price: NotNaN<f32>) -> NotNaN<f32>;
-        fn set_stop_loss(&mut self, amount: NotNaN<f32>) -> Result<(), StockActionFailure>;
+        fn set_stop_loss(&mut self, amount: NotNaN<f32>) -> Result<(), StopLossFailure>;
 
     }
     pub trait BuyableSecurity {

@@ -1,14 +1,61 @@
 use ordered_float::NotNaN;
 use serde::{Deserialize, Serialize};
 use chrono::prelude::*;
-use crate::stock_action::StockAction::{Stock, StockAction};
+use chrono::DateTime;
+use crate::stock_action::StockAction::{Stock, StockAction, StopLossFailure};
 #[derive(Debug, Deserialize)]
-    pub  struct SAndPHistoricalDaily {
+    pub  struct SAndPHistoricalDailyRaw {
     Date: String,
     Open: f32,
     High: f32,
     Low: f32,
     Close: f32,
+}
+
+pub  struct SandPHistoricalDaily{
+    date: String,
+    open: NotNaN<f32>,
+    high: NotNaN<f32>,
+    low: NotNaN<f32>,
+    close: NotNaN<f32>,
+}
+
+pub enum SandPConversionError{
+    ParseError,
+    IsNaNError,
+}
+
+fn ToNotNaN(f: f32)->Result<NotNaN<f32>, SandPConversionError>{
+    return match NotNaN::new(f){
+        Ok(f) => Ok(f),
+        Err(e) => Err(SandPConversionError::IsNaNError)
+    }
+}
+
+// TODO: make a derive macro for sandphistoricaldaily?
+impl TryInto<SandPHistoricalDaily> for SAndPHistoricalDailyRaw{
+    type Error = SandPHistoricalDaily;
+    fn try_into(self) -> Result<SandPHistoricalDaily, Self::Error> {
+        let date = match DateTime::parse_from_str(&self.Date, "%m/%d/%Y"){
+            Ok(s)=>s,
+            Err(e) => {eprintln!("failed parse: {:?}", e); return  SandPConversionError::ParseError}
+        };
+        return Ok(SandPHistoricalDaily{
+            close: ToNotNaN(self.Close)?,
+            date,
+            high: ToNotNaN(self.High)?,
+            low: ToNotNaN(self.Low)?,
+            open: ToNotNaN(self.Open)?
+        })
+
+
+    }
+}
+
+impl Into<SandPHistoricalDaily> for SAndPHistoricalDailyRaw{
+    fn into(self) -> SandPHistoricalDaily {
+        return SandPHistoricalDaily { date: (), open: (), high: (), low: (), close: () }
+    }
 }
 
 
@@ -21,7 +68,7 @@ impl Stock for WorstCaseSAndP{
     }
     fn get_time(&self)->chrono::Duration {
         let s = & self.0.Date;
-        let ans  = DateTime::from_str("%m/%d/%Y");
+        let ans  = DateTime::parse_from_str(s, "%m/%d/%Y");
         // s.parse::<Duration>("%Y-%m-%d")
         return ans;
     }
@@ -34,7 +81,7 @@ impl Stock for BestCaseSAndP{
     }
     fn get_time(&self)->chrono::Duration {
         let s = & self.0.Date;
-        let ans  = DateTime::from_str("%m/%d/%Y");
+        let ans  = DateTime::parse_from_str(s, "%m/%d/%Y").expect("datetime parsing failed!");
         // s.parse::<Duration>("%Y-%m-%d")
         return ans;
     }
@@ -43,16 +90,16 @@ impl Stock for BestCaseSAndP{
 impl SAndPStock for WorstCaseSAndP{}
 
 impl<T> StockAction<T> for SAndPLeverageBuy
-where T: SAndPStock{
-    type UnderlyingAsset = SAndPHistoricalDaily;
-    fn from(stock: Self::UnderlyingAsset)->Self{
-
-        return StockBuy { stop_loss: (),
-             unit: (),
-             invested: (), 
-             invested_at: (), 
-             wipeout: (), 
-             leverage: () }
+where T: SAndPStock + Stock{
+    type UnderlyingAsset = T;
+    fn from(stock: Self::UnderlyingAsset, currency_invested: NotNaN<f32>, leverage: NotNaN<f32>)->Self{
+        assert!(leverage > 0.0, "0 leverage given!");
+        return Self { stop_loss: currency_invested/leverage,
+             unit: currency_invested / stock.get_price(),
+             invested: currency_invested, 
+             invested_at: stock.get_time(), 
+             wipeout: currency_invested/leverage, 
+             leverage: leverage }
     }
     fn will_wipeout(&self, current_price: NotNaN<f32>) -> bool {
         return self.wipeout > current_price;
@@ -64,10 +111,11 @@ where T: SAndPStock{
         return self.invested
             + (current_price - self.invested) * NotNaN::from(self.leverage as f32);
     }
-    fn set_stop_loss(&mut self, amount: NotNaN<f32>) -> Result<(), StockActionFailure> {
+    fn set_stop_loss(&mut self, amount: NotNaN<f32>) -> Result<(), StopLossFailure> {
         if self.will_wipeout(amount) {
-            return Err(StockActionFailure::UnderWipeout);
-        } else {
+            return Err(StopLossFailure::UnderWipeout);
+        }
+        else {
             self.stop_loss = amount;
         }
 
@@ -82,5 +130,5 @@ struct SAndPLeverageBuy {
     invested: NotNaN<f32>,
     invested_at: u64,
     wipeout: NotNaN<f32>,
-    leverage: u32,
+    leverage: NotNaN<f32>,
 }
