@@ -2,7 +2,8 @@ use ordered_float::NotNaN;
 use serde::{Deserialize, Serialize};
 use chrono::prelude::*;
 use chrono::DateTime;
-use crate::stock_action::StockAction::{Stock, StockAction, StopLossFailure};
+use crate::stock_action::StockAction::{Stock, StockInvestment};
+
 #[derive(Debug, Deserialize)]
     pub  struct SAndPHistoricalDailyRaw {
     Date: String,
@@ -53,8 +54,7 @@ impl TryInto<SAndPHistoricalDaily> for SAndPHistoricalDailyRaw{
 }
 
 
-trait SAndPStock{}
-impl SAndPStock for WorstCaseSAndP{}
+
 
 struct WorstCaseSAndP(SAndPHistoricalDaily);
 impl Stock for WorstCaseSAndP{
@@ -82,48 +82,8 @@ impl Stock for BestCaseSAndP{
     }
 }
 
-impl SAndPStock for WorstCaseSAndP{}
 
-impl<T> StockAction<T> for SAndPLeverageBuy
-where T: Stock{
-    type UnderlyingAsset = T;
-    fn from(stock: Self::UnderlyingAsset, currency_invested: NotNaN<f32>, leverage: NotNaN<f32>)->Self{
-        assert!(leverage > 0.0, "0 leverage given!");
-        return Self { stop_loss: currency_invested - (currency_invested / leverage),
-             unit: currency_invested / stock.get_price(),
-             invested: currency_invested, 
-             invested_at: stock.get_time(), 
-             wipeout: currency_invested - (currency_invested / leverage), 
-             leverage }
-    }
-    fn will_wipeout(&self, current_price: NotNaN<f32>) -> bool {
-        return self.wipeout > current_price;
-    }
-    fn will_cashout(&self, current_price: NotNaN<f32>) -> bool {
-        self.will_wipeout(current_price) || self.stop_loss < current_price
-    }
-    fn cashout(&self, current_price: NotNaN<f32>) -> NotNaN<f32> {
-        return self.invested
-            + (current_price - self.invested) * NotNaN::from(self.leverage as f32);
-    }
-    fn set_stop_loss(&mut self, amount: NotNaN<f32>) -> Result<(), StopLossFailure> {
-        if self.will_wipeout(amount) {
-            return Err(StopLossFailure::UnderWipeout);
-        }
-        else {
-            self.stop_loss = amount;
-        }
 
-        return Ok(());
-    }
-}
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-struct SAndPLeverageBuy {
-    stop_loss: NotNaN<f32>,
-    unit: NotNaN<f32>,
-    invested: NotNaN<f32>,
-    invested_at: u64,
-    wipeout: NotNaN<f32>,
-    leverage: NotNaN<f32>,
-}
+
+
