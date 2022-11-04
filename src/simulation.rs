@@ -49,6 +49,7 @@ use crate::stock_action::StockAction::{StockAction, Stock, BuyableSecurity};
                 if current_elem.0.will_wipeout(current_stock){
                     drop(current_elem);
                     self.funds += self.positions.pop()?.0.cashout(current_stock).into_inner();
+                    dbg!("funds after popping value: {:?}", self.funds);
                 }
 
                 
@@ -69,12 +70,14 @@ use crate::stock_action::StockAction::{StockAction, Stock, BuyableSecurity};
             collection.into_iter().map(
                 |item| {
                     self.funds  += self.strategy.get_funds(item);
+                    // see if we have funds
                     if self.funds > 0.0 {
                         let n = NotNaN::new(self.funds).unwrap();
                         self.positions.push( Reverse(Action::from(&item, n)) );
                         self.funds = 0.0;
                     }
-                    unimplemented!("finish!");
+                    // remove positions under amount
+                    
 
 
                     return ();
