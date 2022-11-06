@@ -14,7 +14,7 @@ use crate::stock_action::StockAction::{Stock, StockInvestment};
     Low: f32,
     Close: f32,
 }
-
+#[derive(Clone, Copy)]
 pub  struct SAndPHistoricalDaily{
     date: DateTime<Utc>,
     open: NotNaN<f32>,
@@ -39,9 +39,8 @@ fn ToNotNaN(f: f32)->Result<NotNaN<f32>, SandPConversionError>{
 impl TryInto<SAndPHistoricalDaily> for SAndPHistoricalDailyRaw{
     type Error = SandPConversionError;
     fn try_into(self) -> Result<SAndPHistoricalDaily, Self::Error> {
-        
-        let date: DateTime<Utc> = match NaiveDateTime::parse_from_str(&self.Date, "%m/%d/%Y"){
-            Ok(s)=>s.try_into().expect("failed naivedatetime parse"),
+        let date: DateTime<Utc> = match NaiveDate::parse_from_str(&self.Date, "%m/%d/%Y"){
+            Ok(s)=> Utc.from_local_datetime(&s.and_time(NaiveTime::from_hms(0, 0, 0))).unwrap(),
             Err(e) => {eprintln!("failed parse: {:?}", e.to_string()); 
             return  Err(SandPConversionError::ParseError)}
         };
@@ -59,20 +58,26 @@ impl TryInto<SAndPHistoricalDaily> for SAndPHistoricalDailyRaw{
 
 
 
-
+#[derive(Clone, Copy)]
 pub struct WorstCaseSAndP(pub SAndPHistoricalDaily);
 impl Stock for WorstCaseSAndP{
-    fn get_price(&self)->ordered_float::NotNaN<f32> {
-        return self.0.high;
+    fn get_sell_price(&self)->ordered_float::NotNaN<f32> {
+        return self.0.low;
     }
     fn get_time(&self)->chrono::DateTime<Utc> {
         self.0.date
     }
+    fn get_buy_price(&self) -> NotNaN<f32> {
+        return self.0.high;
+    }
 }
-
+#[derive(Clone, Copy)]
 pub struct BestCaseSAndP(pub SAndPHistoricalDaily);
 impl Stock for BestCaseSAndP{
-    fn get_price(&self)->ordered_float::NotNaN<f32> {
+    fn get_sell_price(&self)->ordered_float::NotNaN<f32> {
+        return self.0.high;
+    }
+    fn get_buy_price(&self) -> NotNaN<f32> {
         return self.0.low;
     }
     fn get_time(&self)->chrono::DateTime<Utc> {

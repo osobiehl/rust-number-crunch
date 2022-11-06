@@ -15,9 +15,9 @@ use std::time;
 mod s_and_p;
 mod simulation;
 mod stock_action;
-use stock_action::StockAction::StockAction;
-use s_and_p::{SAndPHistoricalDaily, SAndPHistoricalDailyRaw, BestCaseSAndP, WorstCaseSAndP};
+use s_and_p::{BestCaseSAndP, SAndPHistoricalDaily, SAndPHistoricalDailyRaw, WorstCaseSAndP};
 use simulation::{DollarCostAveragingLinear, InvestmentStrategy, Simulation};
+use stock_action::StockAction::StockAction;
 struct SAndPSimulation {}
 
 // struct StockSimulation<T: StockAction, InputType: Into<T>, InputFormat: ParallelIterator>{
@@ -46,14 +46,38 @@ fn main() {
 
     let elements: Vec<SAndPHistoricalDaily> = reader
         .deserialize::<SAndPHistoricalDailyRaw>()
-        .filter_map(|s| s.ok()?.try_into().ok()).collect();
+        .filter_map(|s| s.ok()?.try_into().ok())
+        .collect();
 
-    let s_and_p_worst_case: Vec<_> = elements.into_iter().map(WorstCaseSAndP).collect();
+    let s_and_p_worst_case: Vec<_> = elements.clone().into_iter().rev().map(WorstCaseSAndP).collect();
+
+    println!("{:^10}|{:^10}|{:^10}|{:^10}", "leverage", "investment", "return", "fraction");
+    const MAX_LEVERAGE: usize = 50;
+
+    for leverage in 1..=MAX_LEVERAGE{
+        let dollar_cost_average = DollarCostAveragingLinear::new(1000.0, chrono::Duration::days(30), leverage as f32);
+        let mut simulation: Simulation<WorstCaseSAndP, StockInvestment, DollarCostAveragingLinear> =
+            Simulation::new(dollar_cost_average);
+        let total = simulation.run(&s_and_p_worst_case);
+        let invested = simulation.total_invested();
+        let fraction: f32 = total/invested;
+        println!("{leverage:^10}|{invested:^10}|{total:^10}|{fraction:^10}");
+    }
+
+
+    let s_and_p_best_case: Vec<_> = elements.clone().into_iter().rev().map(BestCaseSAndP).collect();
+    println!("=======================BEST CASE==================");
+    for leverage in 1..=MAX_LEVERAGE{
+        let dollar_cost_average = DollarCostAveragingLinear::new(1000.0, chrono::Duration::days(30), leverage as f32);
+        let mut simulation: Simulation<BestCaseSAndP, StockInvestment, DollarCostAveragingLinear> =
+            Simulation::new(dollar_cost_average);
+        let total = simulation.run(&s_and_p_best_case);
+        let invested = simulation.total_invested();
+        let fraction: f32 = total/invested;
+        println!("{leverage:^10}|{invested:^10}|{total:^10}|{fraction:^10}");
+    }
+
     
 
-    let dollar_cost_average = DollarCostAveragingLinear::new(1000.0, chrono::Duration::days(30));
-    let mut simulation: Simulation<WorstCaseSAndP, StockInvestment, DollarCostAveragingLinear >= Simulation::new(dollar_cost_average);
-    simulation.run(&s_and_p_worst_case);
-    
     // dbg!(elements);
 }
