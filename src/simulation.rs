@@ -93,8 +93,10 @@ impl<S: Stock, T: Ord + StockAction<S>, Strat: InvestmentStrategy<S, T>> Simulat
             let current_elem = self.positions.peek()?;
             if current_elem.will_cashout(current_stock) {
                 drop(current_elem);
-                self.funds += self.positions.pop()?.cashout(current_stock).into_inner();
-                // println!("funds after stop loss value: {:?}", self.funds);
+                let to_remove = self.positions.pop()?;
+                self.funds += to_remove.cashout(current_stock).into_inner();
+                
+                println!("funds after stop loss value: {:?}", to_remove);
             } else {
                 drop(current_elem);
 

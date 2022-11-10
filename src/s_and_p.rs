@@ -14,7 +14,7 @@ use crate::stock_action::StockAction::{Stock, StockInvestment};
     Low: f32,
     Close: f32,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub  struct SAndPHistoricalDaily{
     date: DateTime<Utc>,
     open: NotNaN<f32>,
@@ -58,7 +58,7 @@ impl TryInto<SAndPHistoricalDaily> for SAndPHistoricalDailyRaw{
 
 
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct WorstCaseSAndP(pub SAndPHistoricalDaily);
 impl Stock for WorstCaseSAndP{
     fn get_sell_price(&self)->ordered_float::NotNaN<f32> {
@@ -71,7 +71,7 @@ impl Stock for WorstCaseSAndP{
         return self.0.high;
     }
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct BestCaseSAndP(pub SAndPHistoricalDaily);
 impl Stock for BestCaseSAndP{
     fn get_sell_price(&self)->ordered_float::NotNaN<f32> {

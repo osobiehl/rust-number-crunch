@@ -8,7 +8,7 @@ pub mod StockAction {
     }
 
     // at some point: expand to use spread
-    pub trait Stock {
+    pub trait Stock: Debug {
         fn get_time(&self) -> DateTime<Utc> ;
         fn get_buy_price(&self) -> NotNaN<f32>;
         fn get_sell_price(&self) -> NotNaN<f32>;
@@ -18,14 +18,14 @@ pub mod StockAction {
         UnderWipeout,
         WillImmediatelyCashOut,
     }
-    pub trait StockAction<T: BuyableSecurity> {
+    pub trait StockAction<T: BuyableSecurity>: Debug {
         fn from(stock: & T, currency_invested: NotNaN<f32>, leverage: NotNaN<f32>) -> Self;
         fn will_wipeout(&self, current_stock: &T) -> bool;
         fn will_cashout(&self, current_stock: &T) -> bool;
         fn cashout(&self, current_stock: &T) -> NotNaN<f32>;
         fn set_stop_loss(&mut self, amount: NotNaN<f32>) -> Result<(), StopLossFailure>;
     }
-    pub trait BuyableSecurity {
+    pub trait BuyableSecurity: Debug {
         fn get_price(&self) -> NotNaN<f32>;
     }
     impl<T: Stock> BuyableSecurity for T {
