@@ -40,6 +40,7 @@ pub mod StockAction {
         unit: NotNaN<f32>,
         invested: NotNaN<f32>,
         invested_at: DateTime<Utc>,
+        invested_at_price: NotNaN<f32>,
         wipeout_at: NotNaN<f32>,
         leverage: NotNaN<f32>,
     }
@@ -78,11 +79,12 @@ pub mod StockAction {
             let v = stock.get_buy_price();
             return Self {
                 stop_loss: v - (v / leverage),
-                unit: currency_invested / stock.get_buy_price(),
+                unit: (currency_invested / stock.get_buy_price()) * leverage,
                 invested: currency_invested,
                 invested_at: stock.get_time(),
                 wipeout_at: v - (v / leverage),
                 leverage,
+                invested_at_price: stock.get_buy_price()
             };
         }
         fn will_wipeout(&self, current_stock: &T) -> bool {
@@ -92,8 +94,8 @@ pub mod StockAction {
             self.will_wipeout(current_stock) || self.stop_loss > current_stock.get_sell_price()
         }
         fn cashout(&self, current_stock: &T) -> NotNaN<f32> {
-            return self.invested
-                + (current_stock.get_sell_price() - self.invested) * self.leverage;
+            let total_borrowed = self.invested * (self.leverage - 1.0);
+            return  (current_stock.get_sell_price() * self.unit) - total_borrowed;
         }
         fn set_stop_loss(&mut self, amount: NotNaN<f32>) -> Result<(), StopLossFailure> {
             if self.will_wipeout_(amount) {

@@ -1,6 +1,7 @@
 use crate::stock_action::StockAction::{BuyableSecurity, Stock, StockAction};
 use chrono::{format::Fixed, Date, DateTime, Duration, Utc};
 use ordered_float::NotNaN;
+use rayon::result;
 use std::cmp::Reverse;
 use std::{collections::BinaryHeap, fmt::Debug, marker::PhantomData, ops::Not};
 
@@ -51,6 +52,9 @@ where
     fn total_invested(&self) -> f32 {
         self.total_invested
     }
+    fn return_funds(&mut self, amount: f32) {
+        
+    }
 }
 
 pub trait InvestmentStrategy<S, T>
@@ -59,6 +63,7 @@ where
     T: StockAction<S>,
 {
     fn get_funds(&mut self, stock: &S) -> f32;
+    fn return_funds(&mut self, amount: f32);
     fn inspect_positions(
         &mut self,
         positions: &mut BinaryHeap<T>,
@@ -92,11 +97,15 @@ impl<S: Stock, T: Ord + StockAction<S>, Strat: InvestmentStrategy<S, T>> Simulat
         loop {
             let current_elem = self.positions.peek()?;
             if current_elem.will_cashout(current_stock) {
+                // println!("current stock: {:?}", current_stock);
                 drop(current_elem);
                 let to_remove = self.positions.pop()?;
-                self.funds += to_remove.cashout(current_stock).into_inner();
+                let resulting_money = to_remove.cashout(current_stock);
+                let wipeout_check = resulting_money.into_inner().max(0.0);
                 
-                println!("funds after stop loss value: {:?}", to_remove);
+                // println!("resulting money: {resulting_money}"); 
+                self.strategy.return_funds(wipeout_check);
+                // println!("stop loss: {:?}", to_remove);
             } else {
                 drop(current_elem);
 
