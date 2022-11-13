@@ -15,9 +15,11 @@ use std::time;
 mod s_and_p;
 mod simulation;
 mod stock_action;
+mod dynamic_simulation;
 use s_and_p::{BestCaseSAndP, SAndPHistoricalDaily, SAndPHistoricalDailyRaw, WorstCaseSAndP};
 use simulation::{DollarCostAveragingLinear, InvestmentStrategy, Simulation};
 use stock_action::StockAction::StockAction;
+use dynamic_simulation::DCAWithTrailingStopLoss;
 struct SAndPSimulation {}
 
 // struct StockSimulation<T: StockAction, InputType: Into<T>, InputFormat: ParallelIterator>{
