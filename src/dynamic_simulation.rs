@@ -24,6 +24,8 @@ T: StockAction<S>
             current_stock: &S,
         ) -> () {
         
+        
+            
     }
     fn return_funds(&mut self, amount: f32) {
         

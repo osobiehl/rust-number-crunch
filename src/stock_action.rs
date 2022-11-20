@@ -18,8 +18,11 @@ pub mod StockAction {
         UnderWipeout,
         WillImmediatelyCashOut,
     }
+
+
     pub trait StockAction<T: BuyableSecurity>: Debug {
         fn from(stock: & T, currency_invested: NotNaN<f32>, leverage: NotNaN<f32>) -> Self;
+        fn eval(&mut self, stock: &T);
         fn will_wipeout(&self, current_stock: &T) -> bool;
         fn will_cashout(&self, current_stock: &T) -> bool;
         fn cashout(&self, current_stock: &T) -> NotNaN<f32>;
@@ -43,6 +46,10 @@ pub mod StockAction {
         invested_at_price: NotNaN<f32>,
         wipeout_at: NotNaN<f32>,
         leverage: NotNaN<f32>,
+        max_price: NotNaN<f32>,
+        max_at: DateTime<Utc>,
+        min_price: NotNaN<f32>,
+        min_at: DateTime<Utc>
     }
     
     impl PartialEq for StockInvestment{
@@ -77,15 +84,32 @@ pub mod StockAction {
         ) -> Self {
             assert!(leverage > NotNaN::new(0.0).unwrap(), "0 leverage given!");
             let v = stock.get_buy_price();
+            let price = stock.get_buy_price();
+            let time = stock.get_time();
             return Self {
                 stop_loss: v - (v / leverage),
-                unit: (currency_invested / stock.get_buy_price()) * leverage,
+                unit: (currency_invested / price) * leverage,
                 invested: currency_invested,
-                invested_at: stock.get_time(),
+                invested_at: time,
                 wipeout_at: v - (v / leverage),
                 leverage,
-                invested_at_price: stock.get_buy_price()
+                invested_at_price: stock.get_buy_price(),
+                max_at: time,
+                max_price: price,
+                min_at: time,
+                min_price: price,
             };
+        }
+        fn eval(&mut self, stock: &T) {
+            let price = stock.get_sell_price();
+            if price < self.min_price{
+                self.min_price = price;
+                self.min_at = stock.get_time();
+            }
+            else if {price > self.max_price}{
+                self.max_price = price;
+                self.max_at = stock.get_time();
+            }
         }
         fn will_wipeout(&self, current_stock: &T) -> bool {
             return self.will_wipeout_(current_stock.get_sell_price())
