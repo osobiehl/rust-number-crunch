@@ -19,14 +19,22 @@ pub mod StockAction {
         WillImmediatelyCashOut,
     }
 
+    #[derive(Debug, Eq, PartialEq, PartialOrd)]
+    pub struct StockTimeSnapshot{
+        pub price: NotNaN<f32>,
+        pub time: DateTime<Utc>
+    }
+
 
     pub trait StockAction<T: BuyableSecurity>: Debug {
         fn from(stock: & T, currency_invested: NotNaN<f32>, leverage: NotNaN<f32>) -> Self;
-        fn eval(&mut self, stock: &T);
+        fn eval(&mut self, stock: &T)->bool;
         fn will_wipeout(&self, current_stock: &T) -> bool;
         fn will_cashout(&self, current_stock: &T) -> bool;
         fn cashout(&self, current_stock: &T) -> NotNaN<f32>;
         fn set_stop_loss(&mut self, amount: NotNaN<f32>) -> Result<(), StopLossFailure>;
+        fn get_max(&self) -> &StockTimeSnapshot;
+        fn get_min(&self) -> &StockTimeSnapshot;
     }
     pub trait BuyableSecurity: Debug {
         fn get_price(&self) -> NotNaN<f32>;
@@ -46,10 +54,8 @@ pub mod StockAction {
         invested_at_price: NotNaN<f32>,
         wipeout_at: NotNaN<f32>,
         leverage: NotNaN<f32>,
-        max_price: NotNaN<f32>,
-        max_at: DateTime<Utc>,
-        min_price: NotNaN<f32>,
-        min_at: DateTime<Utc>
+        max: StockTimeSnapshot,
+        min: StockTimeSnapshot,
     }
     
     impl PartialEq for StockInvestment{
@@ -94,22 +100,23 @@ pub mod StockAction {
                 wipeout_at: v - (v / leverage),
                 leverage,
                 invested_at_price: stock.get_buy_price(),
-                max_at: time,
-                max_price: price,
-                min_at: time,
-                min_price: price,
+                max: StockTimeSnapshot { price, time},
+                min: StockTimeSnapshot { price, time},
             };
         }
-        fn eval(&mut self, stock: &T) {
+        fn eval(&mut self, stock: &T) -> bool {
             let price = stock.get_sell_price();
-            if price < self.min_price{
-                self.min_price = price;
-                self.min_at = stock.get_time();
+            if price < self.min.price{
+                self.min.price = price;
+                self.min.time = stock.get_time();
+                return true
             }
-            else if {price > self.max_price}{
-                self.max_price = price;
-                self.max_at = stock.get_time();
+            else if price > self.max.price{
+                self.max.price = price;
+                self.max.time = stock.get_time();
+                return true
             }
+            false
         }
         fn will_wipeout(&self, current_stock: &T) -> bool {
             return self.will_wipeout_(current_stock.get_sell_price())
@@ -130,5 +137,12 @@ pub mod StockAction {
 
             return Ok(());
         }
+        fn get_max(&self) -> &StockTimeSnapshot {
+            &self.max
+        }
+        fn get_min(&self) -> &StockTimeSnapshot {
+            &self.min
+        }
+
     }
 }
