@@ -35,6 +35,8 @@ pub mod StockAction {
         fn set_stop_loss(&mut self, amount: NotNaN<f32>) -> Result<(), StopLossFailure>;
         fn get_max(&self) -> &StockTimeSnapshot;
         fn get_min(&self) -> &StockTimeSnapshot;
+        fn get_leverage(&self) -> NotNaN<f32>;
+        fn get_original_price(&self) -> NotNaN<f32>;
     }
     pub trait BuyableSecurity: Debug {
         fn get_price(&self) -> NotNaN<f32>;
@@ -142,6 +144,12 @@ pub mod StockAction {
         }
         fn get_min(&self) -> &StockTimeSnapshot {
             &self.min
+        }
+        fn get_leverage(&self) -> NotNaN<f32> {
+            self.leverage
+        }
+        fn get_original_price(&self) -> NotNaN<f32> {
+            self.invested_at_price
         }
 
     }
